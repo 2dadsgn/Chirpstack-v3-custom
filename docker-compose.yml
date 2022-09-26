@@ -1,0 +1,94 @@
+#docker-compose.yml del chirpstack-v3-custom
+#check su dockerfile: Dockerfile-devel tale importo (come da docker file github) comporta errori nel componenti
+version: "3"
+
+services:
+
+  #NETWORK SERVER
+  chirpstack-network-server:
+    build:
+     context: ./chirpstack-network-server
+     #dockerfile: Dockerfile-devel
+    environment:
+      - POSTGRESQL__DSN=postgres://chirpstack_ns:chirpstack_ns@postgresql/chirpstack_ns?sslmode=disable
+      - REDIS__URL=redis://redis:6379
+      - NETWORK_SERVER__BAND__NAME=EU868
+      - NETWORK_SERVER__GATEWAY__BACKEND__MQTT__SERVER=tcp://mosquitto:1883
+      - JOIN_SERVER__DEFAULT__SERVER=http://chirpstack-application-server:8003
+    volumes:
+      - ./configuration/chirpstack-network-server:/etc/chirpstack-network-server
+    depends_on:
+      - postgresql
+      - mosquitto
+    ports:
+      - 8000:8000
+
+  #APPLICATION SERVER
+  chirpstack-application-server:
+    build:
+     context: ./chirpstack-application-server/
+    #  dockerfile: Dockerfile-devel
+    ports:
+      - 8080:8080
+    environment:
+      - POSTGRESQL__DSN=postgres://chirpstack_as:chirpstack_as@postgresql/chirpstack_as?sslmode=disable
+      - REDIS__URL=redis://redis:6379
+      - APPLICATION_SERVER__INTEGRATION__MQTT__SERVER=tcp://mosquitto:1883
+      - APPLICATION_SERVER__API__PUBLIC_HOST=chirpstack-application-server:8001
+      - APPLICATION_SERVER__EXTERNAL_API__JWT_SECRET=verysecret
+    volumes:
+      - ./configuration/chirpstack-application-server:/etc/chirpstack-application-server
+      - ./chirpstack-api:/chirpstack-api
+    depends_on:
+      - chirpstack-network-server
+
+  #GATEWAY BRIDGE
+  chirpstack-gateway-bridge:
+    build:
+      context: ./chirpstack-gateway-bridge
+      #dockerfile: Dockerfile-devel
+    ports:
+      - 1700:1700/udp
+    environment:
+      - INTEGRATION__MQTT__AUTH__GENERIC__SERVERS=tcp://mosquitto:1883
+      - MQTT_SERVER=tcp://mosquitto:1883  #aggiunta da file originale single component
+      - TEST_MQTT_SERVER=tcp://mosquitto:1883 #aggiunta da file originale single component
+    volumes:
+      - ./configuration/chirpstack-gateway-bridge:/etc/chirpstack-gateway-bridge
+    depends_on:
+      - mosquitto
+
+  postgresql:
+    image: postgres:9.6-alpine
+    environment:
+      - POSTGRES_PASSWORD=root
+    volumes:
+      - ./configuration/postgresql/initdb/001-init-chirpstack_ns.sh:/docker-entrypoint-initdb.d/001-init-chirpstack_ns.sh
+      - ./configuration/postgresql/initdb/002-init-chirpstack_as.sh:/docker-entrypoint-initdb.d/002-init-chirpstack_as.sh
+      - ./configuration/postgresql/initdb/003-chirpstack_as_extensions.sh:/docker-entrypoint-initdb.d/003-chirpstack_as_extensions.sh
+      - postgresqldata:/var/lib/postgresql/data
+
+  redis:
+    image: redis:5-alpine
+    volumes:
+      - redisdata:/data
+
+  mosquitto:
+    image: eclipse-mosquitto:2
+    ports:
+      - 1883:1883
+    volumes:
+      - ./configuration/eclipse-mosquitto/mosquitto.conf:/mosquitto/config/mosquitto.conf
+
+  http_receiver:
+    build:
+      context: ./http_receiver
+    ports:
+      - 3333:3333
+volumes:
+  postgresqldata:
+  redisdata:
+
+networks:
+  default:
+    name: custom_net_chirpstack
