@@ -10,7 +10,9 @@ url="redis://redis:6379"
 [application_server.integration.mqtt]
 server="tcp://mosquitto:1883"
 
-
+# This is used by ChirpStack Network Server to connect to ChirpStack Application Server. When running
+# ChirpStack Application Server on a different host than ChirpStack Network Server, make sure to set
+# this to the host:ip on which ChirpStack Network Server can reach ChirpStack Application Server.
 [application_server.api]
   # ip:port to bind the api server
   bind="0.0.0.0:8001"

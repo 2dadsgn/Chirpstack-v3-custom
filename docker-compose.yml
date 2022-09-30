@@ -6,6 +6,7 @@ services:
 
   #NETWORK SERVER
   chirpstack-network-server:
+    container_name: network-server
     build:
      context: ./chirpstack-network-server
      #dockerfile: Dockerfile-devel
@@ -25,11 +26,13 @@ services:
 
   #APPLICATION SERVER
   chirpstack-application-server:
+    container_name: application-server
     build:
      context: ./chirpstack-application-server/
     #  dockerfile: Dockerfile-devel
     ports:
       - 8080:8080
+      - 8001:8001 # !!apertura porta esclusivamente per TEST
     environment:
       - POSTGRESQL__DSN=postgres://chirpstack_as:chirpstack_as@postgresql/chirpstack_as?sslmode=disable
       - REDIS__URL=redis://redis:6379
@@ -38,12 +41,12 @@ services:
       - APPLICATION_SERVER__EXTERNAL_API__JWT_SECRET=verysecret
     volumes:
       - ./configuration/chirpstack-application-server:/etc/chirpstack-application-server
-      - ./chirpstack-api:/chirpstack-api
     depends_on:
       - chirpstack-network-server
 
   #GATEWAY BRIDGE
   chirpstack-gateway-bridge:
+    container_name: gateway-bridge
     build:
       context: ./chirpstack-gateway-bridge
       #dockerfile: Dockerfile-devel
@@ -79,12 +82,6 @@ services:
       - 1883:1883
     volumes:
       - ./configuration/eclipse-mosquitto/mosquitto.conf:/mosquitto/config/mosquitto.conf
-
-  http_receiver:
-    build:
-      context: ./http_receiver
-    ports:
-      - 3333:3333
 volumes:
   postgresqldata:
   redisdata:

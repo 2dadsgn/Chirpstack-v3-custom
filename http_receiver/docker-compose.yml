@@ -1,0 +1,9 @@
+#docker-compose.yml del htpp_receiver per chirpstack custom v3
+version: "3.9"
+services:
+  http_receiver:
+    image: golang:1.16-alpine
+    volumes:
+      - myapp:/home/http_receiver
+volumes:
+  myapp:
